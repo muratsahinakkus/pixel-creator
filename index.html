@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pixel Creator</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-dots" aria-hidden="true"></span>
+    <span class="brand-name">Pixel&nbsp;Creator</span>
+  </div>
+
+  <div class="topbar-group">
+    <button class="btn" id="btnNew" title="Yeni tasarım (Ctrl+N)">Yeni</button>
+    <button class="btn" id="btnOpen" title="Proje dosyası aç (.json)">Aç</button>
+    <button class="btn" id="btnSave" title="Proje dosyası olarak kaydet (Ctrl+S)">Kaydet</button>
+    <button class="btn" id="btnImport" title="Görselden başla">Görselden</button>
+  </div>
+
+  <div class="topbar-group">
+    <button class="btn btn-primary" id="btnExportSvg" title="SVG olarak dışa aktar">SVG indir</button>
+    <button class="btn btn-ghost" id="btnExportPng" title="PNG olarak dışa aktar">PNG</button>
+  </div>
+
+  <div class="topbar-spacer"></div>
+
+  <div class="doc-chip" id="docSize">—</div>
+  <div class="count-chip" id="colorCount" title="Bu tasarımda kullanılan farklı renk sayısı">
+    <span class="dot"></span><span id="colorCountText">0 renk</span>
+  </div>
+</header>
+
+<main class="workspace">
+
+  <nav class="tools" id="toolbar" aria-label="Araçlar">
+    <button class="tool" data-tool="pencil" title="Kalem (B)">
+      <svg viewBox="0 0 24 24"><path d="M4.5 19.5h3.6L19 8.6a2 2 0 0 0 0-2.8l-.8-.8a2 2 0 0 0-2.8 0L4.5 15.9v3.6z"/><path d="M14.5 6.5l3 3"/></svg>
+    </button>
+    <button class="tool" data-tool="eraser" title="Silgi (E)">
+      <svg viewBox="0 0 24 24"><path d="M5.5 14.5l6-6 5.5 5.5-4.5 4.5H9.5l-4-4z"/><path d="M6.5 20.5h11"/></svg>
+    </button>
+    <button class="tool" data-tool="bucket" title="Kova / doldur (G)">
+      <svg viewBox="0 0 24 24"><path d="M6.4 9.6l6-6 7.2 7.2-5.4 5.4a2.6 2.6 0 0 1-3.6 0l-4.2-4.2a2.2 2.2 0 0 1 0-2.4z"/><path d="M9.2 6.8L7 4.6"/><circle cx="19.5" cy="17.5" r="1.8"/></svg>
+    </button>
+    <button class="tool" data-tool="eyedropper" title="Pipet (I) — çizerken Alt basılı tut">
+      <svg viewBox="0 0 24 24"><path d="M4 20l1.6-5 8-8 3.4 3.4-8 8L4 20z"/><path d="M15.2 4.4l4.4 4.4"/></svg>
+    </button>
+    <span class="tool-sep"></span>
+    <button class="tool" data-tool="line" title="Çizgi (L)">
+      <svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="5" r="1.6"/></svg>
+    </button>
+    <button class="tool" data-tool="rect" title="Dikdörtgen (R) — Shift: kare, Alt: dolu">
+      <svg viewBox="0 0 24 24"><rect x="4.5" y="6.5" width="15" height="11" rx="1"/></svg>
+    </button>
+    <button class="tool" data-tool="ellipse" title="Elips (O) — Shift: daire, Alt: dolu">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7.5" ry="6"/></svg>
+    </button>
+    <span class="tool-sep"></span>
+    <button class="tool" data-tool="select" title="Seçim & taşı (M)">
+      <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="1" stroke-dasharray="3 2.6"/></svg>
+    </button>
+    <button class="tool" data-tool="hand" title="Kaydır (H) — veya Space basılı tut">
+      <svg viewBox="0 0 24 24"><path d="M8.5 13V6.6a1.4 1.4 0 0 1 2.8 0V12M11.3 12V5.4a1.4 1.4 0 0 1 2.8 0V12M14.1 12.4V7.6a1.4 1.4 0 0 1 2.8 0V15a5 5 0 0 1-5 5h-1.4l-4.2-4.2 1.6-1.6 2.8 2.2"/></svg>
+    </button>
+
+    <span class="tool-sep"></span>
+
+    <button class="tool toggle" id="tglMirrorX" title="Yatay simetri (Shift+H)">
+      <svg viewBox="0 0 24 24"><path d="M12 3.5v17" stroke-dasharray="2.5 2.5"/><path d="M9 8.5L4.5 12 9 15.5z"/><path d="M15 8.5L19.5 12 15 15.5z"/></svg>
+    </button>
+    <button class="tool toggle" id="tglMirrorY" title="Dikey simetri (Shift+V)">
+      <svg viewBox="0 0 24 24"><path d="M3.5 12h17" stroke-dasharray="2.5 2.5"/><path d="M8.5 9L12 4.5 15.5 9z"/><path d="M8.5 15L12 19.5 15.5 15z"/></svg>
+    </button>
+    <button class="tool toggle" id="tglGrid" title="Izgara (Ctrl+G)">
+      <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="1"/><path d="M9.5 4.5v15M14.5 4.5v15M4.5 9.5h15M4.5 14.5h15"/></svg>
+    </button>
+
+    <button class="tool danger" id="btnClear" title="Tüm tuvali temizle (Shift+Delete) — Ctrl+Z ile geri alınır">
+      <svg viewBox="0 0 24 24"><path d="M4.8 7h14.4M10 7V5.6A1.6 1.6 0 0 1 11.6 4h.8A1.6 1.6 0 0 1 14 5.6V7"/><path d="M6.6 7l.75 11.1A2 2 0 0 0 9.35 20h5.3a2 2 0 0 0 2-1.9L17.4 7"/><path d="M10.3 10.5v6M13.7 10.5v6"/></svg>
+    </button>
+  </nav>
+
+  <section class="stage" id="stage">
+    <canvas id="board"></canvas>
+    <div class="stage-hint" id="stageHint">Sağ tıkla → hızlı renk halkası</div>
+    <div class="dropzone" id="dropzone"><div class="dropzone-inner">Görseli buraya bırak</div></div>
+  </section>
+
+  <aside class="side">
+
+    <section class="panel">
+      <h2 class="panel-title">Renk</h2>
+      <div class="current-row">
+        <div class="current-swatch" id="curSwatch"></div>
+        <div class="current-fields">
+          <label class="field">
+            <span>HEX</span>
+            <input type="text" id="hexInput" spellcheck="false" maxlength="7" value="#FF6B4A">
+          </label>
+          <button class="btn btn-mini" id="btnAddSwatch" title="Bu rengi palete ekle">Palete ekle</button>
+        </div>
+      </div>
+      <canvas id="wheel" width="196" height="196" class="wheel"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Palet</h2>
+        <button class="link-btn" id="btnResetPalette" title="Varsayılan palete dön">sıfırla</button>
+      </div>
+      <div class="swatches" id="paletteGrid"></div>
+      <p class="hint">Tıkla: seç · Sağ tık: paletten çıkar</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Bu tasarımda</h2>
+        <label class="limit">
+          <span>limit</span>
+          <input type="number" id="limitInput" min="1" max="64" value="12">
+        </label>
+      </div>
+      <div class="used-list" id="usedList"></div>
+      <p class="warn hidden" id="limitWarn"></p>
+      <p class="hint">Bir rengin üstüne tıkla → o rengin tüm pikselleri seçili renge dönüşür.</p>
+    </section>
+
+  </aside>
+</main>
+
+<footer class="statusbar">
+  <button class="sbtn" id="btnUndo" title="Geri al (Ctrl+Z)">↶ Geri</button>
+  <button class="sbtn" id="btnRedo" title="İleri al (Ctrl+Shift+Z)">↷ İleri</button>
+  <div class="topbar-spacer"></div>
+  <span class="sb-item" id="coords">–, –</span>
+  <span class="sb-sep"></span>
+  <button class="sbtn" id="btnZoomOut">−</button>
+  <span class="sb-item" id="zoomLabel">—</span>
+  <button class="sbtn" id="btnZoomIn">+</button>
+  <button class="sbtn" id="btnZoomFit" title="Ekrana sığdır (0)">Sığdır</button>
+</footer>
+
+<div class="modal-root hidden" id="modalRoot"></div>
+<div class="toasts" id="toasts"></div>
+
+<input type="file" id="fileProject" accept="application/json,.json" hidden>
+<input type="file" id="fileImage" accept="image/*" hidden>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
