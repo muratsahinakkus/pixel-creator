@@ -20,7 +20,7 @@ export function openImport(file) {
 
 function showDialog(img, filename) {
   const d = state.doc;
-  const opts = { colors: Math.min(16, state.colorLimit), cover: false, dropWhite: true, dominant: true };
+  const opts = { colors: Math.min(16, state.colorLimit), cover: true, dropWhite: true, dominant: true };
 
   const wrap = document.createElement('div');
   wrap.innerHTML = `
@@ -42,7 +42,7 @@ function showDialog(img, filename) {
       <span class="val" id="impColorsVal">${opts.colors}</span>
     </div>
     <label class="check-row"><input type="checkbox" id="impFlat" checked> Düz renkleri koru (çizgi/illüstrasyon için)</label>
-    <label class="check-row"><input type="checkbox" id="impCover"> Kırparak doldur (varsayılan: tamamını sığdır)</label>
+    <label class="check-row"><input type="checkbox" id="impCover" checked> Kırparak doldur (kapatırsan görselin tamamı sığdırılır)</label>
     <label class="check-row"><input type="checkbox" id="impWhite" checked> Beyaz/açık arka planı şeffaf yap</label>
     <div class="modal-actions">
       <button class="btn" id="impCancel">Vazgeç</button>

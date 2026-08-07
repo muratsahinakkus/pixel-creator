@@ -96,7 +96,8 @@ Açılan önizlemede:
 - **Düz renkleri koru** — açık: her hücrenin baskın rengi alınır, kenar yumuşatmasından
   gelen ara tonlar elenir. Çizim/illüstrasyon kaynakları için bunu açık bırak.
   Kapalı: hücre ortalaması alınır, fotoğraflarda daha iyi sonuç verir.
-- **Kırparak doldur** — kapalıyken görselin tamamı sığdırılır, açıkken tuval doldurulur.
+- **Kırparak doldur** — varsayılan olarak açık: görsel tuvali dolduracak şekilde kırpılır.
+  Kapatırsan görselin tamamı sığdırılır, kenarlarda boşluk kalabilir.
 - **Beyaz/açık arka planı şeffaf yap** — beyaz zeminli referansları temizler.
 
 ### Kaydetme ve dışa aktarma
