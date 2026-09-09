@@ -125,38 +125,31 @@ function drawResult(cv, pixels, w, h) {
 
 /* ---------- Pikselize + renk indirgeme ---------- */
 
-const CELL = 16;   // her hedef piksel için okunan kaynak örnek karesi
+// Kaynak görselden okunacak en fazla piksel. Bunun üstünde küçültmek
+// zorundayız; altında kaynak olduğu gibi okunur.
+const MAX_SOURCE_PIXELS = 12e6;
+
+// Bir hücrenin renk alması için gereken en az dolu örnek oranı.
+const MIN_COVERAGE = 0.4;
+
+// Baskın rengin hücrede tutması gereken en az pay. Altına düşerse oylama
+// güvenilmez sayılıp hücrenin ortasındaki örnek kullanılır.
+const MIN_CONSENSUS = 0.2;
 
 function pixelize(img, w, h, opts) {
-  // 1) Görseli, hedef ızgaranın CELL katı çözünürlükte bir tuvale yerleştir.
-  //    Böylece her hedef piksele karşılık CELL×CELL kaynak örneği düşüyor.
-  const SW = w * CELL, SH = h * CELL;
-  const cv = document.createElement('canvas');
-  cv.width = SW; cv.height = SH;
-  const ctx = cv.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  const src = readSource(img);
+  const box = gridBox(src.w, src.h, w, h, opts.cover);
 
-  const sAspect = img.width / img.height;
-  const dAspect = w / h;
-  let dw, dh;
-  const fitInside = !opts.cover;
-  if ((sAspect > dAspect) === fitInside) { dw = SW; dh = SW / sAspect; }
-  else { dh = SH; dw = SH * sAspect; }
-  ctx.drawImage(img, (SW - dw) / 2, (SH - dh) / 2, dw, dh);
-
-  const data = ctx.getImageData(0, 0, SW, SH).data;
-
-  // 2) Her hücreyi tek bir renge indir.
-  //    "dominant" modda hücrenin en çok tekrar eden rengi alınır — düz renkli
-  //    illüstrasyonlarda kenar yumuşatmasından gelen ara tonları elemek için.
-  //    Kapalı olduğunda hücrenin ortalaması alınır (fotoğraf için daha iyi).
+  // Her hücreyi tek bir renge indir. "dominant" modda hücredeki en çok
+  // tekrar eden GERÇEK kaynak rengi alınır (ortalama alınmaz), böylece zaten
+  // piksel olan görsellerde renkler birebir korunuyor. Kapalıyken hücre
+  // ortalaması alınır — fotoğraflarda daha yumuşak sonuç veriyor.
   const samples = [];
   const index = new Int32Array(w * h).fill(-1);
 
   for (let cy = 0; cy < h; cy++) {
     for (let cx = 0; cx < w; cx++) {
-      const c = cellColor(data, SW, cx, cy, opts);
+      const c = cellColor(src, box, cx, cy, w, h, opts);
       if (!c) continue;
       index[cy * w + cx] = samples.length;
       samples.push(c);
@@ -164,13 +157,27 @@ function pixelize(img, w, h, opts) {
   }
   if (!samples.length) return new Array(w * h).fill(null);
 
-  // 3) Renkleri indirge. Klasik median-cut piksel sayısına göre çalışır ve
-  //    büyük düz alanlar (arka plan, gövde) küçük ama önemli ayrıntıları
-  //    (gözler, ağız) yutar. Her rengi sayısının kareköküyle ağırlıklandırınca
-  //    küçük renk adacıkları kendi kutusunu alabiliyor.
+  const out = new Array(w * h).fill(null);
+
+  // Sonuç istenen renk sayısına zaten sığıyorsa hiç indirgeme yapma.
+  // Piksel görselinden gelen palet aynen çıkar.
+  const distinct = new Set(samples.map(keyOf));
+  if (distinct.size <= opts.colors) {
+    for (let i = 0; i < w * h; i++) {
+      if (index[i] < 0) continue;
+      const c = samples[index[i]];
+      out[i] = rgbToHex(c.r, c.g, c.b);
+    }
+    return out;
+  }
+
+  // Renkleri indirge. Klasik median-cut piksel sayısına göre çalışır ve büyük
+  // düz alanlar (arka plan, gövde) küçük ama önemli ayrıntıları (gözler, ağız)
+  // yutar. Her rengi sayısının kareköküyle ağırlıklandırınca küçük renk
+  // adacıkları kendi kutusunu alabiliyor.
   const hist = new Map();
   for (const s of samples) {
-    const key = (s.r << 16) | (s.g << 8) | s.b;
+    const key = keyOf(s);
     const e = hist.get(key);
     if (e) e.n++; else hist.set(key, { r: s.r, g: s.g, b: s.b, n: 1 });
   }
@@ -180,7 +187,6 @@ function pixelize(img, w, h, opts) {
     for (let i = 0; i < reps; i++) weighted.push(e);
   }
   const centroids = medianCut(weighted, opts.colors);
-  const out = new Array(w * h).fill(null);
   for (let i = 0; i < w * h; i++) {
     if (index[i] < 0) continue;
     out[i] = rgbToHex(...nearest(samples[index[i]], centroids));
@@ -188,41 +194,111 @@ function pixelize(img, w, h, opts) {
   return out;
 }
 
-function cellColor(data, SW, cx, cy, opts) {
+/**
+ * Kaynağı kendi çözünürlüğünde okur. Araya bir ölçekleme koymak piksel
+ * sınırlarını bulanıklaştırıyor ve zaten piksel olan görsellerde renkleri
+ * kaydırıyor; o yüzden sadece çok büyük görsellerde küçültüyoruz.
+ */
+function readSource(img) {
+  let w = img.width, h = img.height;
+  const total = w * h;
+  const shrink = total > MAX_SOURCE_PIXELS;
+  if (shrink) {
+    const k = Math.sqrt(MAX_SOURCE_PIXELS / total);
+    w = Math.max(1, Math.round(w * k));
+    h = Math.max(1, Math.round(h * k));
+  }
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = shrink;
+  if (shrink) ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
+  return { w, h, data: ctx.getImageData(0, 0, w, h).data };
+}
+
+/**
+ * Hedef ızgaranın kaynak üzerindeki karşılığı.
+ * cover: ızgara oranındaki en büyük kutu görselin İÇİNE oturur (kırpar).
+ * contain: kutu görseli SARAR (kenarlarda boşluk kalır).
+ */
+function gridBox(sw, sh, w, h, cover) {
+  const sAspect = sw / sh;
+  const dAspect = w / h;
+  let dw, dh;
+  if (cover ? sAspect > dAspect : sAspect <= dAspect) {
+    dh = sh; dw = sh * dAspect;
+  } else {
+    dw = sw; dh = sw / dAspect;
+  }
+  return { ox: (sw - dw) / 2, oy: (sh - dh) / 2, dw, dh };
+}
+
+function cellColor(src, box, cx, cy, w, h, opts) {
+  const cw = box.dw / w;
+  const ch = box.dh / h;
+
+  let x0 = Math.round(box.ox + cx * cw);
+  let x1 = Math.round(box.ox + (cx + 1) * cw);
+  let y0 = Math.round(box.oy + cy * ch);
+  let y1 = Math.round(box.oy + (cy + 1) * ch);
+  // Hedef ızgara kaynaktan daha ince olabilir: hücreye tek kaynak pikseli düşsün.
+  if (x1 <= x0) { x0 = Math.floor(box.ox + (cx + 0.5) * cw); x1 = x0 + 1; }
+  if (y1 <= y0) { y0 = Math.floor(box.oy + (cy + 0.5) * ch); y1 = y0 + 1; }
+
+  const slots = (x1 - x0) * (y1 - y0);
   const counts = opts.dominant ? new Map() : null;
   let sr = 0, sg = 0, sb = 0, kept = 0;
 
-  for (let y = 0; y < CELL; y++) {
-    const row = (cy * CELL + y) * SW;
-    for (let x = 0; x < CELL; x++) {
-      const i = (row + cx * CELL + x) * 4;
-      const a = data[i + 3];
-      if (a < 128) continue;
-      const r = data[i], g = data[i + 1], b = data[i + 2];
+  const xa = Math.max(0, x0), xb = Math.min(src.w, x1);
+  const ya = Math.max(0, y0), yb = Math.min(src.h, y1);
+
+  // Hücrenin ortasındaki örnek: bulanık kaynaklarda en az kirlenmiş nokta.
+  const mid = pixelAt(src, (xa + xb - 1) >> 1, (ya + yb - 1) >> 1, opts);
+
+  for (let y = ya; y < yb; y++) {
+    const row = y * src.w;
+    for (let x = xa; x < xb; x++) {
+      const i = (row + x) * 4;
+      if (src.data[i + 3] < 128) continue;
+      const r = src.data[i], g = src.data[i + 1], b = src.data[i + 2];
       if (opts.dropWhite && r > 242 && g > 242 && b > 242) continue;
       kept++;
       sr += r; sg += g; sb += b;
       if (counts) {
-        const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-        const e = counts.get(key);
-        if (e) { e.n++; e.r += r; e.g += g; e.b += b; }
-        else counts.set(key, { n: 1, r, g, b });
+        const key = (r << 16) | (g << 8) | b;
+        counts.set(key, (counts.get(key) || 0) + 1);
       }
     }
   }
 
-  // Hücrenin çoğu boş/beyazsa piksel şeffaf kalsın
-  if (kept < CELL * CELL * 0.4) return null;
+  // Hücrenin çoğu şeffaf/beyazsa (ya da ızgara görselin dışına taşıyorsa) boş kalsın
+  if (kept < slots * MIN_COVERAGE) return null;
 
   if (counts) {
-    let best = null;
-    for (const e of counts.values()) if (!best || e.n > best.n) best = e;
-    return round(best.r / best.n, best.g / best.n, best.b / best.n);
+    let bestKey = -1, bestN = -1;
+    for (const [key, n] of counts) if (n > bestN) { bestN = n; bestKey = key; }
+    // Kazanan hücrenin anlamlı bir kısmını temsil etmiyorsa oylamanın değeri
+    // yok (kaynak bulanık kaydedilmiş, her örnek farklı): kazanan yalnızca
+    // tarama sırasına göre köşedeki örnek olur. Böyle durumlarda hücrenin
+    // ortasındaki örneği alıyoruz — bulanıklıktan en az etkilenen nokta.
+    if (mid && bestN < kept * MIN_CONSENSUS) return mid;
+    return { r: (bestKey >> 16) & 255, g: (bestKey >> 8) & 255, b: bestKey & 255 };
   }
-  return round(sr / kept, sg / kept, sb / kept);
+  return { r: Math.round(sr / kept), g: Math.round(sg / kept), b: Math.round(sb / kept) };
 }
 
-const round = (r, g, b) => ({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
+/** Tek bir kaynak pikselini okur; şeffaf ya da elenmişse null. */
+function pixelAt(src, x, y, opts) {
+  if (x < 0 || y < 0 || x >= src.w || y >= src.h) return null;
+  const i = (y * src.w + x) * 4;
+  if (src.data[i + 3] < 128) return null;
+  const r = src.data[i], g = src.data[i + 1], b = src.data[i + 2];
+  if (opts.dropWhite && r > 242 && g > 242 && b > 242) return null;
+  return { r, g, b };
+}
+
+const keyOf = (c) => (c.r << 16) | (c.g << 8) | c.b;
 
 function nearest(px, centroids) {
   let best = centroids[0], bd = Infinity;
