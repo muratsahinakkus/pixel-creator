@@ -7,6 +7,7 @@ import * as tools from './tools.js';
 import * as storage from './storage.js';
 import { openImport } from './importer.js';
 import { hydrate as hydrateReference, serialize as serializeReference } from './reference.js';
+import { parseSVG } from './svgimport.js';
 import { openModal, closeModal, isModalOpen, toast } from './modal.js';
 import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText, GAP } from './exporters.js';
 
@@ -75,7 +76,7 @@ function wireTopbar() {
   document.getElementById('btnOpen').addEventListener('click', () => fileProject.click());
   fileProject.addEventListener('change', () => {
     const f = fileProject.files[0];
-    if (f) readProject(f);
+    if (f) openFile(f);
     fileProject.value = '';
   });
 
@@ -239,6 +240,29 @@ async function saveProject() {
   toast('Proje dosyası indirildi');
 }
 
+/** Uzantıya göre proje dosyası mı SVG mi olduğuna karar verir. */
+function openFile(file) {
+  if (/\.svg$/i.test(file.name) || file.type === 'image/svg+xml') readSVG(file);
+  else readProject(file);
+}
+
+function readSVG(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const { doc, info } = parseSVG(fr.result, file.name);
+      store.loadDoc(doc);
+      const gapNote = info.gap > 0 ? `, ${round(info.gap)}px boşluklu` : '';
+      toast(`${doc.name} açıldı — ${info.cols}×${info.rows}${gapNote}`);
+    } catch (err) {
+      toast(err.message || 'SVG okunamadı', true);
+    }
+  };
+  fr.readAsText(file);
+}
+
+const round = (v) => Math.round(v * 100) / 100;
+
 function readProject(file) {
   const fr = new FileReader();
   fr.onload = () => {
@@ -303,7 +327,9 @@ function wireDropzone() {
     zone.classList.remove('on');
     const f = e.dataTransfer.files[0];
     if (!f) return;
-    if (f.name.toLowerCase().endsWith('.json')) readProject(f);
+    const name = f.name.toLowerCase();
+    if (name.endsWith('.json')) readProject(f);
+    else if (name.endsWith('.svg')) readSVG(f);
     else openImport(f);
   });
 }

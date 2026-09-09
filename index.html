@@ -16,7 +16,7 @@
 
   <div class="topbar-group">
     <button class="btn" id="btnNew" title="Yeni tasarım (Ctrl+N)">Yeni</button>
-    <button class="btn" id="btnOpen" title="Proje dosyası aç (.json)">Aç</button>
+    <button class="btn" id="btnOpen" title="Proje (.json) veya SVG dosyası aç">Aç</button>
     <button class="btn" id="btnSave" title="Proje dosyası olarak kaydet (Ctrl+S)">Kaydet</button>
     <button class="btn" id="btnImport" title="Görselden başla">Görselden</button>
   </div>
@@ -192,7 +192,7 @@
 <div class="modal-root hidden" id="modalRoot"></div>
 <div class="toasts" id="toasts"></div>
 
-<input type="file" id="fileProject" accept="application/json,.json" hidden>
+<input type="file" id="fileProject" accept="application/json,.json,image/svg+xml,.svg" hidden>
 <input type="file" id="fileImage" accept="image/*" hidden>
 <input type="file" id="refFile" accept="image/*" hidden>
 
