@@ -551,6 +551,22 @@ button { font-family: inherit; color: inherit; }
   margin: 0 4px;
 }
 
+/* Durum çubuğundaki seçim eylemleri */
+
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sel-count {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--sky);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Radial renk menüsü ---------- */
 
 .radial {

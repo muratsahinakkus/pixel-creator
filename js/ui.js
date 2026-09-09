@@ -26,6 +26,9 @@ export function init() {
   store.on('history', syncStatus);
   store.on('doc', syncStatus);
   store.on('zoom', syncStatus);
+  store.on('selection', syncSelectionBar);
+  store.on('doc', syncSelectionBar);
+  syncSelectionBar();
   store.on('coords', (p) => {
     const inside = p.x >= 0 && p.y >= 0 && p.x < state.doc.w && p.y < state.doc.h;
     document.getElementById('coords').textContent = inside ? `${p.x}, ${p.y}` : '–, –';
@@ -107,6 +110,17 @@ function wireStatusbar() {
   document.getElementById('btnZoomIn').addEventListener('click', () => render.zoomStep(1));
   document.getElementById('btnZoomOut').addEventListener('click', () => render.zoomStep(-1));
   document.getElementById('btnZoomFit').addEventListener('click', render.fit);
+
+  document.getElementById('selFill').addEventListener('click', tools.fillSelection);
+  document.getElementById('selDelete').addEventListener('click', tools.deleteSelection);
+  document.getElementById('selClear').addEventListener('click', () => store.setSelection(null));
+}
+
+/** Seçim varken durum çubuğunda boya/sil eylemlerini gösterir. */
+function syncSelectionBar() {
+  const n = store.selectionIndices().length;
+  document.getElementById('selBar').classList.toggle('hidden', n === 0);
+  if (n) document.getElementById('selCount').textContent = `${n} piksel seçili`;
 }
 
 /* ---------- Yeni tasarım ---------- */
@@ -299,6 +313,7 @@ function wireDropzone() {
 const TOOL_KEYS = {
   b: 'pencil', e: 'eraser', g: 'bucket', i: 'eyedropper',
   l: 'line', r: 'rect', o: 'ellipse', m: 'select', h: 'hand', k: 'reference',
+  w: 'samecolor',
 };
 
 function wireShortcuts() {

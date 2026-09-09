@@ -35,7 +35,9 @@ export const state = {
   mirrorX: false,
   mirrorY: false,
   showGrid: true,
-  selection: null,    // { x, y, w, h }
+  // İki seçim türü var: dikdörtgen (taşınabilir) ve maske (dağınık hücreler,
+  // "aynı rengi seç" aracının ürettiği — taşınmaz, boyanır/silinir).
+  selection: null,    // { kind:'rect', x, y, w, h } | { kind:'mask', cells:Set<number>, color }
   colorLimit: 12,
   // Arkadaki referans görsel. x/y/w belge-piksel biriminde tutulur, böylece
   // yakınlaştırma ve kaydırmada tuvale sabit kalır. img serileştirilmez.
@@ -58,6 +60,7 @@ export function newDoc(w, h, name) {
   past = []; future = []; pending = null;
   emit('doc');
   emit('history');
+  emit('selection');
   emit('pixels');
 }
 
@@ -67,6 +70,7 @@ export function loadDoc(doc) {
   past = []; future = []; pending = null;
   emit('doc');
   emit('history');
+  emit('selection');
   emit('pixels');
 }
 
@@ -236,7 +240,10 @@ export function fitReference() {
 export function setTool(tool) {
   if (state.tool === tool) return;
   state.tool = tool;
-  if (tool !== 'select') state.selection = null;
+  if (tool !== 'select' && tool !== 'samecolor') {
+    state.selection = null;
+    emit('selection');
+  }
   emit('tool');
   emit('pixels');
 }
@@ -249,7 +256,35 @@ export function toggle(key) {
 
 export function setSelection(sel) {
   state.selection = sel;
+  emit('selection');
   emit('pixels');
+}
+
+export function setMaskSelection(cells, color) {
+  setSelection(cells && cells.size ? { kind: 'mask', cells, color } : null);
+}
+
+/** Seçimin kapsadığı piksel indeksleri — her iki seçim türü için de çalışır. */
+export function selectionIndices() {
+  const sel = state.selection;
+  const d = state.doc;
+  if (!sel || !d) return [];
+  if (sel.kind === 'mask') return [...sel.cells];
+  const out = [];
+  for (let y = sel.y; y < sel.y + sel.h; y++) {
+    for (let x = sel.x; x < sel.x + sel.w; x++) {
+      if (x >= 0 && y >= 0 && x < d.w && y < d.h) out.push(y * d.w + x);
+    }
+  }
+  return out;
+}
+
+/** Tuvalde verilen renkteki bütün hücrelerin indeksleri. */
+export function cellsWithColor(color) {
+  const cells = new Set();
+  const px = state.doc.pixels;
+  for (let i = 0; i < px.length; i++) if (px[i] === color) cells.add(i);
+  return cells;
 }
 
 export function setColorLimit(n) {

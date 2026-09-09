@@ -68,6 +68,9 @@
     <button class="tool" data-tool="select" title="Seçim & taşı (M)">
       <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="1" stroke-dasharray="3 2.6"/></svg>
     </button>
+    <button class="tool" data-tool="samecolor" title="Aynı rengi seç (W) — tuvaldeki tüm aynı renkli pikseller">
+      <svg viewBox="0 0 24 24"><path d="M4 20.2l8.4-8.4"/><path d="M15.2 3.6l1.05 2.55 2.55 1.05-2.55 1.05L15.2 10.8l-1.05-2.55-2.55-1.05 2.55-1.05z"/><path d="M19.4 13.4l.62 1.48 1.48.62-1.48.62-.62 1.48-.62-1.48-1.48-.62 1.48-.62z"/></svg>
+    </button>
     <button class="tool" data-tool="hand" title="Kaydır (H) — veya Space basılı tut">
       <svg viewBox="0 0 24 24"><path d="M8.5 13V6.6a1.4 1.4 0 0 1 2.8 0V12M11.3 12V5.4a1.4 1.4 0 0 1 2.8 0V12M14.1 12.4V7.6a1.4 1.4 0 0 1 2.8 0V15a5 5 0 0 1-5 5h-1.4l-4.2-4.2 1.6-1.6 2.8 2.2"/></svg>
     </button>
@@ -168,6 +171,15 @@
 <footer class="statusbar">
   <button class="sbtn" id="btnUndo" title="Geri al (Ctrl+Z)">↶ Geri</button>
   <button class="sbtn" id="btnRedo" title="İleri al (Ctrl+Shift+Z)">↷ İleri</button>
+
+  <div class="sel-bar hidden" id="selBar">
+    <span class="sb-sep"></span>
+    <span class="sel-count" id="selCount"></span>
+    <button class="sbtn" id="selFill" title="Seçili pikselleri aktif renge boya (Enter)">Boya</button>
+    <button class="sbtn" id="selDelete" title="Seçili pikselleri sil (Delete)">Sil</button>
+    <button class="sbtn" id="selClear" title="Seçimi bırak (Esc)">✕</button>
+  </div>
+
   <div class="topbar-spacer"></div>
   <span class="sb-item" id="coords">–, –</span>
   <span class="sb-sep"></span>

@@ -214,15 +214,18 @@ export function draw() {
   // Seçim
   if (state.selection) {
     const sel = state.selection;
-    ctx.save();
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
-    ctx.strokeStyle = '#3A2E2A';
-    ctx.strokeRect(ox + sel.x * s + 1, oy + sel.y * s + 1, sel.w * s - 2, sel.h * s - 2);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineDashOffset = 5;
-    ctx.strokeRect(ox + sel.x * s + 1, oy + sel.y * s + 1, sel.w * s - 2, sel.h * s - 2);
-    ctx.restore();
+    if (sel.kind === 'mask') drawMaskSelection(ox, oy, sel);
+    else {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = '#3A2E2A';
+      ctx.strokeRect(ox + sel.x * s + 1, oy + sel.y * s + 1, sel.w * s - 2, sel.h * s - 2);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineDashOffset = 5;
+      ctx.strokeRect(ox + sel.x * s + 1, oy + sel.y * s + 1, sel.w * s - 2, sel.h * s - 2);
+      ctx.restore();
+    }
   }
 
   // İmleç altındaki piksel
@@ -234,6 +237,36 @@ export function draw() {
     ctx.lineWidth = 1;
     ctx.strokeRect(ox + hover.x * s + 2.5, oy + hover.y * s + 2.5, s - 5, s - 5);
   }
+}
+
+/**
+ * Maske seçimi: sadece dış kenar çizilir, hücrelerin üstü boyanmaz —
+ * renk aracında seçimin rengi bozmaması gerekiyor.
+ */
+function drawMaskSelection(ox, oy, sel) {
+  const d = state.doc;
+  const s = view.scale;
+  const has = (x, y) => x >= 0 && y >= 0 && x < d.w && y < d.h && sel.cells.has(y * d.w + x);
+
+  ctx.save();
+  ctx.beginPath();
+  for (const i of sel.cells) {
+    const x = i % d.w;
+    const y = (i - x) / d.w;
+    const px = ox + x * s;
+    const py = oy + y * s;
+    if (!has(x, y - 1)) { ctx.moveTo(px, py);         ctx.lineTo(px + s, py); }
+    if (!has(x, y + 1)) { ctx.moveTo(px, py + s);     ctx.lineTo(px + s, py + s); }
+    if (!has(x - 1, y)) { ctx.moveTo(px, py);         ctx.lineTo(px, py + s); }
+    if (!has(x + 1, y)) { ctx.moveTo(px + s, py);     ctx.lineTo(px + s, py + s); }
+  }
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#3A2E2A';
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255, 255, 255, .95)';
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawReference(ox, oy, bw, bh) {

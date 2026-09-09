@@ -85,6 +85,8 @@ function onDown(e) {
 
   if (tool === 'select') { startSelect(p); return; }
 
+  if (tool === 'samecolor') { selectSameColor(p); return; }
+
   if (tool === 'reference') { startReferenceDrag(e); return; }
 
   if (!store.inBounds(p.x, p.y) && tool === 'bucket') return;
@@ -143,7 +145,7 @@ function onMove(e) {
   }
 
   if (drag.mode === 'newSel') {
-    store.setSelection(rectFrom(drag.start, p));
+    store.setSelection({ kind: 'rect', ...rectFrom(drag.start, p) });
     return;
   }
 
@@ -152,7 +154,7 @@ function onMove(e) {
     const dy = p.y - drag.start.y;
     store.restorePending();
     stampFloating(drag, dx, dy);
-    store.setSelection({ x: drag.orig.x + dx, y: drag.orig.y + dy, w: drag.orig.w, h: drag.orig.h });
+    store.setSelection({ kind: 'rect', x: drag.orig.x + dx, y: drag.orig.y + dy, w: drag.orig.w, h: drag.orig.h });
     store.emit('pixels');
   }
 }
@@ -291,7 +293,8 @@ function scaleReference(e) {
 
 function startSelect(p) {
   const sel = state.selection;
-  const inside = sel && p.x >= sel.x && p.y >= sel.y && p.x < sel.x + sel.w && p.y < sel.y + sel.h;
+  const inside = sel && sel.kind === 'rect' &&
+    p.x >= sel.x && p.y >= sel.y && p.x < sel.x + sel.w && p.y < sel.y + sel.h;
 
   if (inside) {
     store.beginEdit();
@@ -323,23 +326,38 @@ function stampFloating(g, dx, dy) {
 }
 
 export function deleteSelection() {
-  const sel = state.selection;
-  if (!sel) return;
+  const idx = store.selectionIndices();
+  if (!idx.length) return;
   store.beginEdit();
-  for (let y = sel.y; y < sel.y + sel.h; y++) {
-    for (let x = sel.x; x < sel.x + sel.w; x++) store.setPixel(x, y, null);
-  }
+  for (const i of idx) state.doc.pixels[i] = null;
   store.commitEdit();
 }
 
 export function fillSelection() {
-  const sel = state.selection;
-  if (!sel) return;
+  const idx = store.selectionIndices();
+  if (!idx.length) return;
   store.beginEdit();
-  for (let y = sel.y; y < sel.y + sel.h; y++) {
-    for (let x = sel.x; x < sel.x + sel.w; x++) store.setPixel(x, y, state.activeColor);
-  }
+  for (const i of idx) state.doc.pixels[i] = state.activeColor;
   store.commitEdit();
+  // Maske aynı hücreleri göstermeye devam ediyor; rengini güncel tut.
+  if (state.selection && state.selection.kind === 'mask') {
+    state.selection.color = state.activeColor;
+    store.emit('selection');
+  }
+}
+
+/* ---------- Aynı rengi seç ---------- */
+
+function selectSameColor(p) {
+  const color = store.getPixel(p.x, p.y);
+  if (!color) {
+    store.setSelection(null);
+    toast('Boş hücre — aynı renk seçmek için boyalı bir piksele tıkla');
+    return;
+  }
+  const cells = store.cellsWithColor(color);
+  store.setMaskSelection(cells, color);
+  toast(`${cells.size} piksel seçildi · ${color}`);
 }
 
 /* ---------- Geometri yardımcıları ---------- */
