@@ -2,30 +2,52 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/** SVG'de boyanmamış hücrelerin dolgusu — Figma'da tıklanıp boyanabilsin diye. */
+export const EMPTY_FILL = '#E6E6E6';
+
+/** Aralıklı çıktıda kareler arasındaki ve dış kenardaki boşluk (px). */
+export const GAP = 4;
+
 /**
- * Her dolu piksel için bir <rect> üretir. Figma'ya yapıştırıldığında
- * her kare ayrı bir obje olarak gelir; viewBox piksel birimindedir,
- * yani ölçekleme her zaman keskin kalır.
+ * Her hücre için bir <rect> üretir; Figma'ya yapıştırıldığında her kare ayrı
+ * bir obje olur. Boyanmamış hücreler emptyFill ile gelir (null verilirse hiç
+ * yazılmaz).
+ *
+ * gap = 0 → kareler bitişik, viewBox piksel biriminde (1 birim = 1 piksel).
+ * gap > 0 → kareler arasında ve dış kenarda gap kadar boşluk. Boşlukların tam
+ *           sayı kalması için koordinatlar gerçek px cinsinden yazılır.
  */
 export function toSVG(doc, opts = {}) {
   const scale = opts.scale || 32;
+  const gap = opts.gap || 0;
+  const emptyFill = 'emptyFill' in opts ? opts.emptyFill : EMPTY_FILL;
   const background = opts.background || null;
+
+  const unit = gap > 0 ? scale : 1;   // bir karenin kenarı
+  const step = unit + gap;            // iki karenin sol kenarları arası
+  const vbW = doc.w * step + gap;     // dış kenardaki pay dahil
+  const vbH = doc.h * step + gap;
+  const pxW = gap > 0 ? vbW : doc.w * scale;
+  const pxH = gap > 0 ? vbH : doc.h * scale;
 
   const lines = [];
   lines.push(
-    `<svg xmlns="${SVG_NS}" width="${doc.w * scale}" height="${doc.h * scale}" ` +
-    `viewBox="0 0 ${doc.w} ${doc.h}" shape-rendering="crispEdges">`
+    `<svg xmlns="${SVG_NS}" width="${pxW}" height="${pxH}" ` +
+    `viewBox="0 0 ${vbW} ${vbH}" shape-rendering="crispEdges">`
   );
   lines.push(`  <title>${escapeXml(doc.name)}</title>`);
   if (background) {
-    lines.push(`  <rect x="0" y="0" width="${doc.w}" height="${doc.h}" fill="${background}"/>`);
+    lines.push(`  <rect x="0" y="0" width="${vbW}" height="${vbH}" fill="${background}"/>`);
   }
   lines.push(`  <g id="pixels">`);
   for (let y = 0; y < doc.h; y++) {
     for (let x = 0; x < doc.w; x++) {
-      const c = doc.pixels[y * doc.w + x];
-      if (!c) continue;
-      lines.push(`    <rect x="${x}" y="${y}" width="1" height="1" fill="${c}"/>`);
+      const fill = doc.pixels[y * doc.w + x] || emptyFill;
+      if (!fill) continue;
+      lines.push(
+        `    <rect x="${gap + x * step}" y="${gap + y * step}" ` +
+        `width="${unit}" height="${unit}" fill="${fill}"/>`
+      );
     }
   }
   lines.push(`  </g>`);
@@ -33,10 +55,12 @@ export function toSVG(doc, opts = {}) {
   return lines.join('\n');
 }
 
-export function toPNGBlob(doc, scale) {
+/** PNG'de boyanmamış hücreler şeffaf kalır — gri dolgu yalnızca SVG'ye özel. */
+export function toPNGBlob(doc, scale, gap = 0) {
+  const step = scale + gap;
   const cv = document.createElement('canvas');
-  cv.width = doc.w * scale;
-  cv.height = doc.h * scale;
+  cv.width = doc.w * step + gap;
+  cv.height = doc.h * step + gap;
   const ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   for (let y = 0; y < doc.h; y++) {
@@ -44,7 +68,7 @@ export function toPNGBlob(doc, scale) {
       const c = doc.pixels[y * doc.w + x];
       if (!c) continue;
       ctx.fillStyle = c;
-      ctx.fillRect(x * scale, y * scale, scale, scale);
+      ctx.fillRect(gap + x * step, gap + y * step, scale, scale);
     }
   }
   return new Promise((res) => cv.toBlob(res, 'image/png'));

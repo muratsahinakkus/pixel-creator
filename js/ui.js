@@ -7,7 +7,7 @@ import * as tools from './tools.js';
 import * as storage from './storage.js';
 import { openImport } from './importer.js';
 import { openModal, closeModal, isModalOpen, toast } from './modal.js';
-import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText } from './exporters.js';
+import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText, GAP } from './exporters.js';
 
 const EXPORT_SCALE = 32;   // dışa aktarımda 1 piksel = 32 px
 
@@ -85,8 +85,10 @@ function wireTopbar() {
     fileImage.value = '';
   });
 
-  document.getElementById('btnExportSvg').addEventListener('click', exportSVG);
-  document.getElementById('btnExportPng').addEventListener('click', exportPNG);
+  document.getElementById('btnExportSvg').addEventListener('click', () => exportSVG(0));
+  document.getElementById('btnExportPng').addEventListener('click', () => exportPNG(0));
+  document.getElementById('btnExportSvgGap').addEventListener('click', () => exportSVG(GAP));
+  document.getElementById('btnExportPngGap').addEventListener('click', () => exportPNG(GAP));
 }
 
 function syncStatus() {
@@ -237,21 +239,24 @@ function readProject(file) {
   fr.readAsText(file);
 }
 
-async function exportSVG() {
-  const name = await askFilename('SVG indir', 'svg', state.doc.name);
+async function exportSVG(gap = 0) {
+  const label = gap ? `Aralıklı SVG indir (${gap}px boşluk)` : 'SVG indir';
+  const name = await askFilename(label, 'svg', state.doc.name);
   if (!name) return;
   state.doc.name = name;
-  downloadText(`${name}.svg`, toSVG(state.doc, { scale: EXPORT_SCALE }), 'image/svg+xml');
-  toast('SVG indirildi — her piksel ayrı bir kare');
+  downloadText(`${name}.svg`, toSVG(state.doc, { scale: EXPORT_SCALE, gap }), 'image/svg+xml');
+  toast(gap ? `Aralıklı SVG indirildi (${gap}px boşluk)` : 'SVG indirildi — her piksel ayrı bir kare');
 }
 
-async function exportPNG() {
-  const name = await askFilename('PNG indir', 'png', state.doc.name);
+async function exportPNG(gap = 0) {
+  const label = gap ? `Aralıklı PNG indir (${gap}px boşluk)` : 'PNG indir';
+  const name = await askFilename(label, 'png', state.doc.name);
   if (!name) return;
   state.doc.name = name;
-  const blob = await toPNGBlob(state.doc, EXPORT_SCALE);
+  const blob = await toPNGBlob(state.doc, EXPORT_SCALE, gap);
   download(`${name}.png`, blob);
-  toast(`PNG indirildi (${state.doc.w * EXPORT_SCALE}px)`);
+  const px = state.doc.w * (EXPORT_SCALE + gap) + gap;
+  toast(`PNG indirildi (${px}px)`);
 }
 
 /* ---------- Görsel sürükle-bırak ---------- */
