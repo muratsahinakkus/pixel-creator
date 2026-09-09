@@ -5,6 +5,7 @@ import { state } from './store.js';
 import * as render from './render.js';
 import { openRadial } from './radial.js';
 import { toast } from './modal.js';
+import { sampleAt as sampleReference } from './reference.js';
 
 let cv, stage;
 let drag = null;
@@ -183,7 +184,10 @@ function onWheel(e) {
 
 function pick(p) {
   const c = store.getPixel(p.x, p.y);
-  if (c) store.setActiveColor(c);
+  if (c) { store.setActiveColor(c); return; }
+  // Hücre boşsa altındaki referans görselden al — orijinal, %100 opak rengi.
+  const ref = sampleReference(p.x, p.y);
+  if (ref) store.setActiveColor(ref);
 }
 
 function bucket(sx, sy, color) {

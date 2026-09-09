@@ -42,7 +42,7 @@ Sol taraftaki dikey çubukta. Parantez içindeki harf klavye kısayolu.
 | Kalem | `B` | Boyar. Sürükleyerek çizgi çeker. |
 | Silgi | `E` | Pikseli boşaltır. |
 | Kova | `G` | Aynı renkteki **bitişik** alanı doldurur. |
-| Pipet | `I` | Tuvaldeki bir rengi seçili renk yapar. |
+| Pipet | `I` | Tuvaldeki bir rengi seçili renk yapar. Hücre boşsa arkadaki referans görselden alır. |
 | Çizgi | `L` | `Shift`: 45° kilitli. |
 | Dikdörtgen | `R` | `Shift`: kare · `Alt`: içi dolu. |
 | Elips | `O` | `Shift`: daire · `Alt`: içi dolu. |
@@ -132,6 +132,12 @@ sürükleyerek taşı, tekerlekle büyüt/küçült.
 Görsel piksellerin **altında** durur; boyadıkça altında kalır. Dışa aktardığın
 dosyalara karışmaz. Proje dosyasına (`.json`) gömülür, yani projeyi birine
 yollarsan referans da gider.
+
+**Pipetle referanstan renk alma.** Pipet (`I`) boş bir hücreye tıkladığında
+arkadaki referans görselin o noktadaki rengini alır. Renk **her zaman orijinal,
+%100 opak hâliyle** gelir — saydamlığı %10'a düşürmüş olsan bile aldığın renk
+tam güçtedir. Hücre boyalıysa kendi pikselinin rengi gelir; referansı yeniden
+örneklemek için o hücreyi silmen gerekir. Görsel gizliyken pipet ondan renk almaz.
 
 ---
 

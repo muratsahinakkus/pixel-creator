@@ -6,6 +6,7 @@
 
 import * as store from './store.js';
 import { state } from './store.js';
+import { rgbToHex } from './color.js';
 import { toast } from './modal.js';
 
 /** Gömülürken görselin uzun kenarı bu değere indirilir. */
@@ -175,6 +176,54 @@ export async function hydrate(data) {
   } else {
     store.fitReference();
   }
+}
+
+/* ---------- Pipetle renk okuma ---------- */
+
+// Kaynak görselin pikselleri. Pipet ilk kullanıldığında kurulur, görsel
+// değişince yenilenir. Taşıma/ölçekleme/saydamlık bunu etkilemez.
+let sampler = null;
+let samplerSrc = null;
+
+function ensureSampler() {
+  const r = state.reference;
+  if (!r || !r.img) { sampler = null; samplerSrc = null; return null; }
+  if (samplerSrc === r.src) return sampler;
+
+  const w = r.img.naturalWidth || r.img.width;
+  const h = r.img.naturalHeight || r.img.height;
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(r.img, 0, 0);
+  sampler = { w, h, data: ctx.getImageData(0, 0, w, h).data };
+  samplerSrc = r.src;
+  return sampler;
+}
+
+/**
+ * Referans görselin verilen belge hücresindeki ORİJİNAL rengi.
+ *
+ * Renk doğrudan kaynak görselden okunuyor, ekrandaki birleşik görüntüden
+ * değil — yani paneldeki saydamlık ayarı sonucu etkilemiyor, renk her zaman
+ * %100 opak hâliyle geliyor. Görsel gizliyse ya da hücre görselin dışında
+ * kalıyorsa null döner.
+ */
+export function sampleAt(docX, docY) {
+  const r = state.reference;
+  if (!r || !r.visible || !r.w) return null;
+  const s = ensureSampler();
+  if (!s) return null;
+
+  const u = (docX + 0.5 - r.x) / r.w;
+  const v = (docY + 0.5 - r.y) / (r.w / r.aspect);
+  if (u < 0 || v < 0 || u >= 1 || v >= 1) return null;
+
+  const px = Math.min(s.w - 1, Math.floor(u * s.w));
+  const py = Math.min(s.h - 1, Math.floor(v * s.h));
+  const i = (py * s.w + px) * 4;
+  if (s.data[i + 3] < 128) return null;   // görselin kendi şeffaf bölgesi
+  return rgbToHex(s.data[i], s.data[i + 1], s.data[i + 2]);
 }
 
 /** Diske yazılacak hâli — img gibi serileştirilemeyen alanlar dışarıda kalır. */
