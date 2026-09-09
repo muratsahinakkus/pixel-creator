@@ -636,6 +636,41 @@ button { font-family: inherit; color: inherit; }
 }
 .size-card .label { font-size: 13px; font-weight: 800; }
 
+/* İndirme kutusundaki dosya adı alanı */
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.name-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 10px 12px;
+  border: 2px solid var(--line-2);
+  border-radius: 11px;
+  background: #fff;
+  user-select: text;
+}
+.name-row input:focus {
+  outline: 2px solid var(--sky);
+  outline-offset: 0;
+  border-color: var(--sky);
+}
+
+.name-ext {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;

@@ -162,8 +162,63 @@ export function openNewDialog(force = false) {
 
 /* ---------- Dosya ---------- */
 
-function saveProject() {
-  downloadText(`${state.doc.name}.json`, toProject(state.doc, state.palette), 'application/json');
+/**
+ * İndirme öncesi dosya adı sorar. Onaylanan ad belgeye de yazılır, böylece
+ * bir sonraki indirmede kutu son kullanılan adla açılır.
+ * İptal edilirse null döner ve indirme yapılmaz.
+ */
+function askFilename(title, ext, current) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      closeModal();
+      resolve(value);
+    };
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <h3>${title}</h3>
+      <p class="sub">Dosya adını yazıp indir.</p>
+      <div class="name-row">
+        <input type="text" id="dlName" spellcheck="false" data-autofocus>
+        <span class="name-ext">.${ext}</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="dlCancel">Vazgeç</button>
+        <button class="btn btn-primary" id="dlOk">İndir</button>
+      </div>
+    `;
+
+    const $name = wrap.querySelector('#dlName');
+    $name.value = current;
+
+    openModal(wrap, { onClose: () => finish(null) });
+    $name.select();
+
+    const ok = () => finish(cleanFilename($name.value, ext));
+    wrap.querySelector('#dlOk').addEventListener('click', ok);
+    wrap.querySelector('#dlCancel').addEventListener('click', () => finish(null));
+    $name.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+  });
+}
+
+/** Dosya adında kullanılamayan karakterleri temizler, fazladan uzantıyı atar. */
+function cleanFilename(value, ext) {
+  const name = (value || '')
+    .trim()
+    .replace(/[\/\\:*?"<>|]/g, '-')
+    .replace(new RegExp(`\\.${ext}$`, 'i'), '')
+    .trim();
+  return name || state.doc.name;
+}
+
+async function saveProject() {
+  const name = await askFilename('Proje dosyası kaydet', 'json', state.doc.name);
+  if (!name) return;
+  state.doc.name = name;
+  downloadText(`${name}.json`, toProject(state.doc, state.palette), 'application/json');
   toast('Proje dosyası indirildi');
 }
 
@@ -182,14 +237,20 @@ function readProject(file) {
   fr.readAsText(file);
 }
 
-function exportSVG() {
-  downloadText(`${state.doc.name}.svg`, toSVG(state.doc, { scale: EXPORT_SCALE }), 'image/svg+xml');
+async function exportSVG() {
+  const name = await askFilename('SVG indir', 'svg', state.doc.name);
+  if (!name) return;
+  state.doc.name = name;
+  downloadText(`${name}.svg`, toSVG(state.doc, { scale: EXPORT_SCALE }), 'image/svg+xml');
   toast('SVG indirildi — her piksel ayrı bir kare');
 }
 
 async function exportPNG() {
+  const name = await askFilename('PNG indir', 'png', state.doc.name);
+  if (!name) return;
+  state.doc.name = name;
   const blob = await toPNGBlob(state.doc, EXPORT_SCALE);
-  download(`${state.doc.name}.png`, blob);
+  download(`${name}.png`, blob);
   toast(`PNG indirildi (${state.doc.w * EXPORT_SCALE}px)`);
 }
 
@@ -236,6 +297,9 @@ function wireShortcuts() {
   window.addEventListener('keydown', (e) => {
     const t = e.target;
     if (t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
+    // Modal açıkken kısayollar üst üste modal açmasın
+    if (isModalOpen()) return;
 
     const mod = e.metaKey || e.ctrlKey;
 
