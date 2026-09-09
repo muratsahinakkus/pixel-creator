@@ -4,15 +4,41 @@ import { state, on } from './store.js';
 
 const KEY_DOC = 'pixelcreator:autosave:v1';
 const KEY_PREFS = 'pixelcreator:prefs:v1';
+const KEY_REF = 'pixelcreator:reference:v1';
 
 let timer = null;
+let refSerializer = null;
 
-export function init() {
+/**
+ * Referans görsel belge verisinden ayrı bir anahtarda tutuluyor: base64
+ * görsel büyük olabiliyor ve tuval kaydını kotaya kurban etmemesi gerekiyor.
+ */
+export function init(serializeReference) {
+  refSerializer = serializeReference;
   on('pixels', schedule);
   on('doc', schedule);
   on('palette', savePrefs);
   on('flags', savePrefs);
   on('color', savePrefs);
+  on('reference', saveReference);
+}
+
+function saveReference() {
+  if (!refSerializer) return;
+  try {
+    const data = refSerializer();
+    if (data) localStorage.setItem(KEY_REF, JSON.stringify(data));
+    else localStorage.removeItem(KEY_REF);
+  } catch { /* kota dolu — referans kaydedilmez, çalışma sürer */ }
+}
+
+export function loadReference() {
+  try {
+    const raw = localStorage.getItem(KEY_REF);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 }
 
 function schedule() {

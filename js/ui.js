@@ -6,6 +6,7 @@ import * as render from './render.js';
 import * as tools from './tools.js';
 import * as storage from './storage.js';
 import { openImport } from './importer.js';
+import { hydrate as hydrateReference, serialize as serializeReference } from './reference.js';
 import { openModal, closeModal, isModalOpen, toast } from './modal.js';
 import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText, GAP } from './exporters.js';
 
@@ -220,7 +221,7 @@ async function saveProject() {
   const name = await askFilename('Proje dosyası kaydet', 'json', state.doc.name);
   if (!name) return;
   state.doc.name = name;
-  downloadText(`${name}.json`, toProject(state.doc, state.palette), 'application/json');
+  downloadText(`${name}.json`, toProject(state.doc, state.palette, serializeReference()), 'application/json');
   toast('Proje dosyası indirildi');
 }
 
@@ -228,9 +229,11 @@ function readProject(file) {
   const fr = new FileReader();
   fr.onload = () => {
     try {
-      const { doc, palette } = parseProject(fr.result);
+      const { doc, palette, reference } = parseProject(fr.result);
       store.loadDoc(doc);
       if (palette && palette.length) { state.palette = palette; store.emit('palette'); }
+      if (reference) hydrateReference(reference);
+      else store.clearReference();
       toast(`${doc.name} açıldı`);
     } catch (err) {
       toast(err.message || 'Dosya okunamadı', true);
@@ -295,7 +298,7 @@ function wireDropzone() {
 
 const TOOL_KEYS = {
   b: 'pencil', e: 'eraser', g: 'bucket', i: 'eyedropper',
-  l: 'line', r: 'rect', o: 'ellipse', m: 'select', h: 'hand',
+  l: 'line', r: 'rect', o: 'ellipse', m: 'select', h: 'hand', k: 'reference',
 };
 
 function wireShortcuts() {

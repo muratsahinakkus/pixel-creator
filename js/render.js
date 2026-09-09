@@ -29,6 +29,7 @@ export function init(canvasEl, stageEl) {
   ro.observe(stage);
 
   on('pixels', schedule);
+  on('reference', schedule);
   on('doc', () => { resize(); fit(); });
 
   resize();
@@ -131,6 +132,15 @@ export function toDoc(clientX, clientY) {
   };
 }
 
+/** Ekran koordinatını kesirli belge koordinatına çevirir (referans sürüklemesi için). */
+export function toDocFloat(clientX, clientY) {
+  const r = stage.getBoundingClientRect();
+  return {
+    x: (clientX - r.left - view.ox) / view.scale,
+    y: (clientY - r.top - view.oy) / view.scale,
+  };
+}
+
 /* ---------- Çizim ---------- */
 
 export function draw() {
@@ -152,6 +162,10 @@ export function draw() {
 
   // Şeffaflık için dama deseni
   drawChecker(ox, oy, bw, bh);
+
+  // Referans görsel: damanın üstünde, piksellerin altında — boyanmamış
+  // hücrelerden görünür, boyadıkça altında kalır.
+  drawReference(ox, oy, bw, bh);
 
   // Pikseller
   for (let y = 0; y < d.h; y++) {
@@ -220,6 +234,21 @@ export function draw() {
     ctx.lineWidth = 1;
     ctx.strokeRect(ox + hover.x * s + 2.5, oy + hover.y * s + 2.5, s - 5, s - 5);
   }
+}
+
+function drawReference(ox, oy, bw, bh) {
+  const r = state.reference;
+  if (!r || !r.visible || !r.img || !r.w) return;
+  const s = view.scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(ox, oy, bw, bh);
+  ctx.clip();
+  ctx.globalAlpha = r.opacity;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(r.img, ox + r.x * s, oy + r.y * s, r.w * s, (r.w / r.aspect) * s);
+  ctx.restore();
 }
 
 function drawChecker(ox, oy, bw, bh) {

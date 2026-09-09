@@ -4,6 +4,7 @@ import * as store from './store.js';
 import { state } from './store.js';
 import * as render from './render.js';
 import { openRadial } from './radial.js';
+import { toast } from './modal.js';
 
 let cv, stage;
 let drag = null;
@@ -38,7 +39,7 @@ const isTyping = (e) => e.target instanceof HTMLElement &&
   (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
 
 function updateCursor() {
-  cv.classList.toggle('pan-ready', spaceDown || state.tool === 'hand');
+  cv.classList.toggle('pan-ready', spaceDown || state.tool === 'hand' || state.tool === 'reference');
   cv.classList.toggle('picking', altDown || state.tool === 'eyedropper');
 }
 
@@ -84,6 +85,8 @@ function onDown(e) {
 
   if (tool === 'select') { startSelect(p); return; }
 
+  if (tool === 'reference') { startReferenceDrag(e); return; }
+
   if (!store.inBounds(p.x, p.y) && tool === 'bucket') return;
 
   store.beginEdit();
@@ -110,6 +113,15 @@ function onMove(e) {
   if (drag.mode === 'pan') {
     render.pan(e.clientX - drag.lx, e.clientY - drag.ly);
     drag.lx = e.clientX; drag.ly = e.clientY;
+    return;
+  }
+
+  if (drag.mode === 'reference') {
+    const f = render.toDocFloat(e.clientX, e.clientY);
+    store.updateReference({
+      x: drag.refX + (f.x - drag.startX),
+      y: drag.refY + (f.y - drag.startY),
+    });
     return;
   }
 
@@ -151,12 +163,17 @@ function onUp(e) {
   drag = null;
   cv.classList.remove('panning');
 
-  if (mode === 'pan' || mode === 'newSel') return;
+  if (mode === 'pan' || mode === 'newSel' || mode === 'reference') return;
   store.commitEdit();
 }
 
 function onWheel(e) {
   e.preventDefault();
+  // Referans modunda tekerlek görüntüyü değil referans görselini ölçekler.
+  if (state.tool === 'reference' && state.reference) {
+    scaleReference(e);
+    return;
+  }
   render.zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1 : -1);
 }
 
@@ -239,6 +256,35 @@ function drawShape(g) {
   } else {
     ellipse(r, g.fill, (x, y) => plot(x, y, color));
   }
+}
+
+/* ---------- Referans görsel ---------- */
+
+function startReferenceDrag(e) {
+  if (!state.reference) {
+    toast('Önce sağ panelden bir referans görseli seç');
+    return;
+  }
+  const f = render.toDocFloat(e.clientX, e.clientY);
+  drag = {
+    mode: 'reference',
+    startX: f.x, startY: f.y,
+    refX: state.reference.x, refY: state.reference.y,
+  };
+}
+
+/** İmlecin altındaki nokta sabit kalacak şekilde ölçekler. */
+function scaleReference(e) {
+  const r = state.reference;
+  const f = render.toDocFloat(e.clientX, e.clientY);
+  const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+  const w = Math.max(0.5, Math.min(state.doc.w * 20, r.w * factor));
+  const k = w / r.w;
+  store.updateReference({
+    x: f.x - (f.x - r.x) * k,
+    y: f.y - (f.y - r.y) * k,
+    w,
+  });
 }
 
 /* ---------- Seçim ---------- */

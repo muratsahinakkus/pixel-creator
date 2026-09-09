@@ -74,7 +74,7 @@ export function toPNGBlob(doc, scale, gap = 0) {
   return new Promise((res) => cv.toBlob(res, 'image/png'));
 }
 
-export function toProject(doc, palette) {
+export function toProject(doc, palette, reference) {
   return JSON.stringify({
     format: 'pixel-creator',
     version: 1,
@@ -83,6 +83,7 @@ export function toProject(doc, palette) {
     height: doc.h,
     palette,
     pixels: doc.pixels,
+    reference: reference || null,
   }, null, 2);
 }
 
@@ -101,6 +102,7 @@ export function parseProject(text) {
       pixels: j.pixels.map((c) => (typeof c === 'string' ? c.toUpperCase() : null)),
     },
     palette: Array.isArray(j.palette) ? j.palette : null,
+    reference: j.reference && j.reference.src ? j.reference : null,
   };
 }
 

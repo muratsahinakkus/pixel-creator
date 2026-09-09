@@ -6,6 +6,7 @@ import * as render from './render.js';
 import * as tools from './tools.js';
 import * as radial from './radial.js';
 import * as colorpanel from './colorpanel.js';
+import * as reference from './reference.js';
 import * as storage from './storage.js';
 import * as ui from './ui.js';
 import { toast } from './modal.js';
@@ -31,10 +32,14 @@ render.init(board, stage);
 tools.init(board, stage);
 radial.init();
 colorpanel.init();
-storage.init();
+reference.init();
+storage.init(reference.serialize);
 ui.init();
 
 // Son çalışma varsa devam et, yoksa boyut seçtir
+const savedRef = storage.loadReference();
+if (savedRef) reference.hydrate(savedRef);
+
 const saved = storage.loadDoc();
 if (saved) {
   store.loadDoc(saved);

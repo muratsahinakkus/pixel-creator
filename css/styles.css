@@ -636,6 +636,53 @@ button { font-family: inherit; color: inherit; }
 }
 .size-card .label { font-size: 13px; font-weight: 800; }
 
+/* Referans görsel paneli */
+
+.slider-row.slim {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  gap: 7px;
+  margin: 10px 0 8px;
+}
+.slider-row.slim .val { min-width: 30px; font-size: 11px; }
+/* range girişinin doğal en küçük genişliği satırı taşırıyor — küçülmesine izin ver */
+.slider-row.slim input[type=range] { min-width: 0; }
+.slider-row.slim > span:first-child { flex: none; }
+
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.mini-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+}
+.mini-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  border: 2px solid var(--line-2);
+  border-radius: 8px;
+  background: #fff;
+}
+.mini-field input:focus { outline: 2px solid var(--sky); border-color: var(--sky); }
+
+.ref-actions { display: flex; gap: 5px; }
+.ref-actions .btn { flex: 1; }
+
 /* İndirme kutusundaki dosya adı alanı */
 
 .name-row {

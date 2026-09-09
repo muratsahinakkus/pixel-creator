@@ -71,6 +71,9 @@
     <button class="tool" data-tool="hand" title="Kaydır (H) — veya Space basılı tut">
       <svg viewBox="0 0 24 24"><path d="M8.5 13V6.6a1.4 1.4 0 0 1 2.8 0V12M11.3 12V5.4a1.4 1.4 0 0 1 2.8 0V12M14.1 12.4V7.6a1.4 1.4 0 0 1 2.8 0V15a5 5 0 0 1-5 5h-1.4l-4.2-4.2 1.6-1.6 2.8 2.2"/></svg>
     </button>
+    <button class="tool" data-tool="reference" title="Referans görseli taşı/ölçekle (K) — sürükle, tekerlekle ölçekle">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M3.7 15.2l3.8-3.8 3.5 3.5 3-3 6.3 6.3"/><circle cx="9" cy="10" r="1.3"/></svg>
+    </button>
 
     <span class="tool-sep"></span>
 
@@ -121,6 +124,31 @@
       <p class="hint">Tıkla: seç · Sağ tık: paletten çıkar</p>
     </section>
 
+    <section class="panel" id="refPanel">
+      <div class="panel-head">
+        <h2 class="panel-title">Referans</h2>
+        <button class="link-btn hidden" id="refRemove" title="Referans görseli kaldır">kaldır</button>
+      </div>
+      <button class="btn btn-mini" id="refPick">Görsel seç</button>
+      <div id="refControls" class="hidden">
+        <div class="slider-row slim">
+          <span>Saydamlık</span>
+          <input type="range" id="refOpacity" min="5" max="100" value="50">
+          <span class="val" id="refOpacityVal">50%</span>
+        </div>
+        <div class="ref-grid">
+          <label class="mini-field"><span>ÖLÇEK %</span><input type="number" id="refScale" step="5"></label>
+          <label class="mini-field"><span>X</span><input type="number" id="refX" step="0.5"></label>
+          <label class="mini-field"><span>Y</span><input type="number" id="refY" step="0.5"></label>
+        </div>
+        <div class="ref-actions">
+          <button class="btn btn-mini" id="refToggle">Gizle</button>
+          <button class="btn btn-mini" id="refFit">Sığdır</button>
+        </div>
+      </div>
+      <p class="hint" id="refHint">Üzerinden çizmek için tuvalin arkasına bir görsel koy.</p>
+    </section>
+
     <section class="panel">
       <div class="panel-head">
         <h2 class="panel-title">Bu tasarımda</h2>
@@ -154,6 +182,7 @@
 
 <input type="file" id="fileProject" accept="application/json,.json" hidden>
 <input type="file" id="fileImage" accept="image/*" hidden>
+<input type="file" id="refFile" accept="image/*" hidden>
 
 <script type="module" src="js/main.js"></script>
 </body>

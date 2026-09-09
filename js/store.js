@@ -37,6 +37,9 @@ export const state = {
   showGrid: true,
   selection: null,    // { x, y, w, h }
   colorLimit: 12,
+  // Arkadaki referans görsel. x/y/w belge-piksel biriminde tutulur, böylece
+  // yakınlaştırma ve kaydırmada tuvale sabit kalır. img serileştirilmez.
+  reference: null,    // { src, img, aspect, x, y, w, opacity, visible }
 };
 
 let past = [];
@@ -189,6 +192,43 @@ export function replaceColor(from, to) {
   const px = state.doc.pixels;
   for (let i = 0; i < px.length; i++) if (px[i] === from) px[i] = to;
   commitEdit();
+}
+
+/* ---------- Referans görsel ---------- */
+
+export function setReference(ref) {
+  state.reference = ref;
+  emit('reference');
+}
+
+export function updateReference(patch) {
+  if (!state.reference) return;
+  Object.assign(state.reference, patch);
+  emit('reference');
+}
+
+export function clearReference() {
+  state.reference = null;
+  emit('reference');
+}
+
+/** Görseli tuvale tamamen sığdıran genişlik (belge-piksel biriminde). */
+export function referenceFitWidth() {
+  const r = state.reference;
+  const d = state.doc;
+  if (!r || !d) return 0;
+  return r.aspect >= d.w / d.h ? d.w : d.h * r.aspect;
+}
+
+/** Görseli tuvale sığdırıp ortalar. */
+export function fitReference() {
+  const r = state.reference;
+  const d = state.doc;
+  if (!r || !d) return;
+  const w = referenceFitWidth();
+  const h = w / r.aspect;
+  Object.assign(r, { x: (d.w - w) / 2, y: (d.h - h) / 2, w });
+  emit('reference');
 }
 
 /* ---------- Ayar bayrakları ---------- */
