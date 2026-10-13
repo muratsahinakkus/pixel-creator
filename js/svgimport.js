@@ -32,8 +32,9 @@ export function parseSVG(text, name) {
   const root = doc.documentElement;
   if (!root || root.tagName.toLowerCase() !== 'svg') throw new Error('Dosya geçerli bir SVG değil.');
 
+  const rules = collectStyleRules(doc);
   const shapes = [];
-  collect(root, [1, 0, 0, 1, 0, 0], '#000000', shapes);
+  collect(root, [1, 0, 0, 1, 0, 0], null, shapes, rules);
   if (!shapes.length) throw new Error('SVG içinde kare bulunamadı — bu dosya piksel ızgarası değil.');
 
   const grid = inferGrid(shapes);
@@ -77,26 +78,28 @@ export function parseSVG(text, name) {
 
 /* ---------- Ağacı gez ---------- */
 
-function collect(node, ctm, inheritedFill, out) {
+function collect(node, ctm, inheritedFill, out, rules) {
   for (const el of node.children) {
     const tag = el.tagName.toLowerCase();
     if (SKIP_TAGS.has(tag)) continue;
 
-    if (isInvisible(el)) continue;
+    const css = cssFor(el, rules);
+    if (isInvisible(el, css)) continue;
 
     const tAttr = el.getAttribute('transform');
     const m = tAttr ? mul(ctm, parseTransform(tAttr)) : ctm;
-    const fill = fillOf(el) || inheritedFill;
+    const fill = fillOf(el, css) || inheritedFill;
 
     if (tag === 'g' || tag === 'svg' || tag === 'a') {
-      collect(el, m, fill, out);
+      collect(el, m, fill, out, rules);
       continue;
     }
 
     const rects = shapeToRects(el, tag);
     if (!rects || !rects.length) continue;
 
-    const hex = toHex(fill);
+    // Hiçbir yerde fill belirtilmemişse SVG varsayılanı siyahtır.
+    const hex = toHex(fill || '#000000');
     if (hex === null) continue;                    // fill="none" vb.
     const color = hex === EMPTY_FILL ? null : hex; // gri = boş hücre
 
@@ -107,22 +110,92 @@ function collect(node, ctm, inheritedFill, out) {
   }
 }
 
-function isInvisible(el) {
-  const o = el.getAttribute('opacity');
-  const fo = el.getAttribute('fill-opacity');
-  if (o !== null && parseFloat(o) === 0) return true;
-  if (fo !== null && parseFloat(fo) === 0) return true;
+/* ---------- <style> blokları ---------- */
+
+/**
+ * Illustrator (ve bazı Figma ayarları) renkleri fill attribute'u yerine
+ * <defs><style> içindeki CSS sınıflarına yazıyor: .st0 { fill: #ffe486; }
+ * Bu bloklar okunmazsa her şekil siyaha düşer.
+ *
+ * Basit seçiciler destekleniyor: .sinif, #kimlik, etiket, etiket.sinif ve
+ * bunların virgülle ayrılmış listeleri. Daha karmaşık seçiciler atlanır.
+ */
+function collectStyleRules(doc) {
+  const rules = [];
+  for (const node of doc.querySelectorAll('style')) {
+    const css = (node.textContent || '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const decls = parseDecls(m[2]);
+      if (!decls) continue;
+      const selectors = m[1].split(',').map((t) => t.trim()).filter(Boolean);
+      for (const sel of selectors) {
+        const parsed = parseSelector(sel);
+        if (parsed) rules.push({ ...parsed, decls });
+      }
+    }
+  }
+  return rules;
+}
+
+function parseDecls(body) {
+  const out = {};
+  for (const part of body.split(';')) {
+    const i = part.indexOf(':');
+    if (i < 0) continue;
+    const k = part.slice(0, i).trim().toLowerCase();
+    const v = part.slice(i + 1).trim();
+    if (k === 'fill' || k === 'display' || k === 'opacity' || k === 'fill-opacity') out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function parseSelector(sel) {
+  const m = /^([a-zA-Z][\w-]*)?(?:\.([\w-]+))?$/.exec(sel);
+  if (m && (m[1] || m[2])) return { tag: m[1] ? m[1].toLowerCase() : null, cls: m[2] || null, id: null };
+  const idm = /^#([\w-]+)$/.exec(sel);
+  if (idm) return { tag: null, cls: null, id: idm[1] };
+  return null;   // desteklenmeyen seçici
+}
+
+/** Elemana uyan kuralları belge sırasıyla birleştirir (sonraki kazanır). */
+function cssFor(el, rules) {
+  if (!rules || !rules.length) return null;
+  const tag = el.tagName.toLowerCase();
+  const id = el.getAttribute('id');
+  const classes = (el.getAttribute('class') || '').split(/\s+/).filter(Boolean);
+  let out = null;
+  for (const r of rules) {
+    if (r.id && r.id !== id) continue;
+    if (r.cls && !classes.includes(r.cls)) continue;
+    if (r.tag && r.tag !== tag) continue;
+    out = { ...(out || {}), ...r.decls };
+  }
+  return out;
+}
+
+function isInvisible(el, css) {
+  const zero = (v) => v !== null && v !== undefined && parseFloat(v) === 0;
+  if (zero(el.getAttribute('opacity')) || zero(el.getAttribute('fill-opacity'))) return true;
+  if (css && (zero(css.opacity) || zero(css['fill-opacity']))) return true;
+  if (css && /^\s*none\s*$/i.test(css.display || '')) return true;
   const style = el.getAttribute('style') || '';
   if (/display\s*:\s*none/.test(style)) return true;
   return el.getAttribute('display') === 'none';
 }
 
-function fillOf(el) {
+/**
+ * Öncelik sırası SVG/CSS kurallarına göre: satır içi style > <style> bloğundaki
+ * kural > fill attribute'u. (SVG'de sunum attribute'u en düşük önceliklidir.)
+ */
+function fillOf(el, css) {
   const style = el.getAttribute('style');
   if (style) {
     const m = style.match(/(?:^|;)\s*fill\s*:\s*([^;]+)/i);
     if (m) return m[1].trim();
   }
+  if (css && css.fill) return css.fill;
   return el.getAttribute('fill');
 }
 
