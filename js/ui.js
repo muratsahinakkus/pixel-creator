@@ -9,7 +9,7 @@ import { openImport } from './importer.js';
 import { hydrate as hydrateReference, serialize as serializeReference } from './reference.js';
 import { parseSVG } from './svgimport.js';
 import { openModal, closeModal, isModalOpen, toast } from './modal.js';
-import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText, GAP } from './exporters.js';
+import { toSVG, toPNGBlob, toProject, parseProject, download, downloadText, GAP, EMPTY_FILL } from './exporters.js';
 
 const EXPORT_SCALE = 32;   // dışa aktarımda 1 piksel = 32 px
 
@@ -185,7 +185,7 @@ export function openNewDialog(force = false) {
  * bir sonraki indirmede kutu son kullanılan adla açılır.
  * İptal edilirse null döner ve indirme yapılmaz.
  */
-function askFilename(title, ext, current) {
+function askFilename(title, ext, current, extras = []) {
   return new Promise((resolve) => {
     let done = false;
     const finish = (value) => {
@@ -195,6 +195,11 @@ function askFilename(title, ext, current) {
       resolve(value);
     };
 
+    const checks = extras.map((e) =>
+      `<label class="check-row"><input type="checkbox" id="${e.id}"${e.checked ? ' checked' : ''}> ${e.label}</label>` +
+      (e.hint ? `<p class="check-hint">${e.hint}</p>` : '')
+    ).join('');
+
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <h3>${title}</h3>
@@ -203,6 +208,7 @@ function askFilename(title, ext, current) {
         <input type="text" id="dlName" spellcheck="false" data-autofocus>
         <span class="name-ext">.${ext}</span>
       </div>
+      ${checks}
       <div class="modal-actions">
         <button class="btn" id="dlCancel">Vazgeç</button>
         <button class="btn btn-primary" id="dlOk">İndir</button>
@@ -215,12 +221,21 @@ function askFilename(title, ext, current) {
     openModal(wrap, { onClose: () => finish(null) });
     $name.select();
 
-    const ok = () => finish(cleanFilename($name.value, ext));
+    const ok = () => {
+      const options = {};
+      for (const e of extras) options[e.id] = wrap.querySelector(`#${e.id}`).checked;
+      finish({ name: cleanFilename($name.value, ext), options });
+    };
     wrap.querySelector('#dlOk').addEventListener('click', ok);
     wrap.querySelector('#dlCancel').addEventListener('click', () => finish(null));
     $name.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
   });
 }
+
+// SVG'de boyanmamış karelerin gri mi şeffaf mı çıkacağı. Seçim oturum boyunca
+// hatırlanıyor, böylece arka arkaya indirirken her seferinde işaretlemek
+// gerekmiyor.
+let svgGreyEmpties = true;
 
 /** Dosya adında kullanılamayan karakterleri temizler, fazladan uzantıyı atar. */
 function cleanFilename(value, ext) {
@@ -233,8 +248,9 @@ function cleanFilename(value, ext) {
 }
 
 async function saveProject() {
-  const name = await askFilename('Proje dosyası kaydet', 'json', state.doc.name);
-  if (!name) return;
+  const res = await askFilename('Proje dosyası kaydet', 'json', state.doc.name);
+  if (!res) return;
+  const name = res.name;
   state.doc.name = name;
   downloadText(`${name}.json`, toProject(state.doc, state.palette, serializeReference()), 'application/json');
   toast('Proje dosyası indirildi');
@@ -282,17 +298,33 @@ function readProject(file) {
 
 async function exportSVG(gap = 0) {
   const label = gap ? `Aralıklı SVG indir (${gap}px boşluk)` : 'SVG indir';
-  const name = await askFilename(label, 'svg', state.doc.name);
-  if (!name) return;
+  const res = await askFilename(label, 'svg', state.doc.name, [{
+    id: 'optGrey',
+    label: `Boyanmamış kareler gri gelsin (${EMPTY_FILL})`,
+    hint: 'Kapatırsan boş kareler dosyaya hiç yazılmaz (şeffaf). O hâlde dosya '
+        + 'ızgara boyutunu taşımaz; Creator\'a geri açarken tasarım kırpılmış gelir.',
+    checked: svgGreyEmpties,
+  }]);
+  if (!res) return;
+
+  svgGreyEmpties = res.options.optGrey;
+  const name = res.name;
   state.doc.name = name;
-  downloadText(`${name}.svg`, toSVG(state.doc, { scale: EXPORT_SCALE, gap }), 'image/svg+xml');
-  toast(gap ? `Aralıklı SVG indirildi (${gap}px boşluk)` : 'SVG indirildi — her piksel ayrı bir kare');
+  downloadText(
+    `${name}.svg`,
+    toSVG(state.doc, { scale: EXPORT_SCALE, gap, emptyFill: svgGreyEmpties ? EMPTY_FILL : null }),
+    'image/svg+xml'
+  );
+
+  const bosluk = gap ? `${gap}px boşluklu, ` : '';
+  toast(`SVG indirildi — ${bosluk}boş kareler ${svgGreyEmpties ? 'gri' : 'şeffaf'}`);
 }
 
 async function exportPNG(gap = 0) {
   const label = gap ? `Aralıklı PNG indir (${gap}px boşluk)` : 'PNG indir';
-  const name = await askFilename(label, 'png', state.doc.name);
-  if (!name) return;
+  const res = await askFilename(label, 'png', state.doc.name);
+  if (!res) return;
+  const name = res.name;
   state.doc.name = name;
   const blob = await toPNGBlob(state.doc, EXPORT_SCALE, gap);
   download(`${name}.png`, blob);

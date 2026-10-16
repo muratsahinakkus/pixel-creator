@@ -699,6 +699,15 @@ button { font-family: inherit; color: inherit; }
 .ref-actions { display: flex; gap: 5px; }
 .ref-actions .btn { flex: 1; }
 
+/* İndirme kutusundaki onay kutusu açıklaması */
+
+.check-hint {
+  margin: -8px 0 14px 26px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 /* İndirme kutusundaki dosya adı alanı */
 
 .name-row {

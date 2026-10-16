@@ -212,9 +212,21 @@ versiyonlamak ve arşivlemek için bunu kullan.
 **SVG hakkında bilmen gerekenler:**
 
 - Her hücre ayrı bir `<rect>`. Figma'ya sürüklediğinde her kare ayrı obje olur.
-- Boyanmamış hücreler **`#E6E6E6` gri** olarak çıkar; Figma'da üstüne tıklayıp
-  boyayabilirsin.
 - `viewBox` piksel birimindedir, yani her ölçekte keskin kalır.
+- **Boyanmamış kareler için indirme kutusunda bir seçenek var:**
+
+| Seçenek | Sonuç |
+|---|---|
+| **İşaretli** (varsayılan) | Boş kareler `#E6E6E6` gri `<rect>` olarak çıkar. Figma'da üstüne tıklayıp boyayabilirsin. Dosya ızgara boyutunu taşıdığı için Creator'a geri açınca tasarım **birebir** gelir. |
+| **İşaretsiz** | Boş kareler dosyaya hiç yazılmaz (şeffaf). Dosya daha küçük olur ama ızgara boyutunu taşımaz: Creator'a geri açarken tasarım **kırpılmış** gelir. |
+
+Seçim oturum boyunca hatırlanır — arka arkaya indirirken her seferinde
+işaretlemen gerekmez. PNG'de böyle bir seçenek yok, orada boş kareler her zaman
+şeffaftır.
+
+> Kırpılma örneği: 16×16'lık bir tuvalde sadece ortadaki 2×2 boyalıysa, şeffaf
+> modda indirilen dosya geri açıldığında **2×2** olarak gelir. Tasarımı geri
+> açmayı düşünüyorsan gri seçeneğini açık bırak.
 
 > ⚠️ **`#E6E6E6` grisini tasarımda gerçek bir renk olarak kullanma.** Bu ton "boş
 > hücre" anlamına ayrılmıştır. Bir SVG'yi Pixel Creator'a geri açarken o renkteki
